@@ -1,0 +1,20 @@
+pkgbase = rune-notes-bin
+	pkgdesc = AI-native, local-first markdown notes
+	pkgver = 0.1.2
+	pkgrel = 1
+	url = https://github.com/eggfriedrice24/rune
+	arch = x86_64
+	license = MIT
+	depends = gtk3
+	depends = webkit2gtk-4.1
+	provides = rune-notes
+	conflicts = rune-notes
+	noextract = rune_0.1.2_amd64.deb
+	options = !strip
+	options = !debug
+	source = LICENSE::https://raw.githubusercontent.com/eggfriedrice24/rune/v0.1.2/LICENSE
+	sha256sums = 963a8176a5d89af4c28d4e4906a744a4dc0a8c3b43171cf1e37058a5229f18a0
+	source_x86_64 = https://github.com/eggfriedrice24/rune/releases/download/v0.1.2/rune_0.1.2_amd64.deb
+	sha256sums_x86_64 = 3ae94c417007bdf273a2b1abafac13f2f741f4f721933d4cd98a5c92d7804a1e
+
+pkgname = rune-notes-bin
