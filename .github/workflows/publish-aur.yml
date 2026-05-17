@@ -141,6 +141,7 @@ jobs:
           PKGREL: ${{ steps.update.outputs.pkgrel }}
         run: |
           set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git add PKGBUILD .SRCINFO upstream.sha256
           if git diff --cached --quiet; then
