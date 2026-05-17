@@ -67,11 +67,12 @@ jobs:
         id: decide
         env:
           CHANGED: ${{ steps.check.outputs.changed }}
+          EVENT_NAME: ${{ github.event_name }}
           FORCE_PUBLISH: ${{ github.event.inputs.force_publish }}
         run: |
           set -euo pipefail
           should_publish=false
-          if [[ "$CHANGED" == "true" || "$FORCE_PUBLISH" == "true" ]]; then
+          if [[ "$CHANGED" == "true" || "$EVENT_NAME" == "push" || "$FORCE_PUBLISH" == "true" ]]; then
             should_publish=true
           fi
           echo "should_publish=$should_publish" >> "$GITHUB_OUTPUT"
