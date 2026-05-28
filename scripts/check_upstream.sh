@@ -2,29 +2,45 @@
 set -euo pipefail
 
 UPSTREAM_REPO="${UPSTREAM_REPO:-eggfriedrice24/rune}"
+UPSTREAM_TAG="${UPSTREAM_TAG:-}"
 STATE_FILE="${STATE_FILE:-upstream.sha256}"
+PKGBUILD_PATH="${PKGBUILD_PATH:-PKGBUILD}"
 RELEASE_TAG_REGEX="${RELEASE_TAG_REGEX:-^v[0-9]+\.[0-9]+\.[0-9]+$}"
 RELEASE_PRERELEASE="${RELEASE_PRERELEASE:-false}"
 ASSET_REGEX="${ASSET_REGEX:-^rune_[0-9]+\.[0-9]+\.[0-9]+_amd64\.deb$}"
 out_file="${GITHUB_OUTPUT:-}"
 
-releases_json="$(gh api "repos/$UPSTREAM_REPO/releases?per_page=100")"
-release_json="$(jq -c \
-  --arg regex "$RELEASE_TAG_REGEX" \
-  --arg prerelease "$RELEASE_PRERELEASE" '
-    map(
-      select(
-        (.draft | not)
-        and (.prerelease == ($prerelease == "true"))
-        and (.tag_name | test($regex))
+if [[ -n "$UPSTREAM_TAG" && ! "$UPSTREAM_TAG" =~ $RELEASE_TAG_REGEX ]]; then
+  echo "upstream tag does not match release tag regex: $UPSTREAM_TAG" >&2
+  exit 1
+fi
+
+if [[ -n "$UPSTREAM_TAG" ]]; then
+  release_json="$(gh api "repos/$UPSTREAM_REPO/releases/tags/$UPSTREAM_TAG")"
+else
+  releases_json="$(gh api "repos/$UPSTREAM_REPO/releases?per_page=100")"
+  release_json="$(jq -c \
+    --arg regex "$RELEASE_TAG_REGEX" \
+    --arg prerelease "$RELEASE_PRERELEASE" '
+      map(
+        select(
+          (.draft | not)
+          and (.prerelease == ($prerelease == "true"))
+          and (.tag_name | test($regex))
+        )
       )
-    )
-    | first // empty
-  ' <<<"$releases_json")"
+      | first // empty
+    ' <<<"$releases_json")"
+fi
 
 upstream_tag="$(jq -r '.tag_name // empty' <<<"$release_json")"
 if [[ -z "$upstream_tag" ]]; then
   echo "failed to resolve matching upstream tag from $UPSTREAM_REPO" >&2
+  exit 1
+fi
+
+if ! jq -e --arg prerelease "$RELEASE_PRERELEASE" '(.draft | not) and (.prerelease == ($prerelease == "true"))' <<<"$release_json" >/dev/null; then
+  echo "upstream release is not publishable: $upstream_tag" >&2
   exit 1
 fi
 
@@ -64,8 +80,13 @@ if [[ -f "$STATE_FILE" ]]; then
   previous_sha256="$(tr -d '[:space:]' < "$STATE_FILE")"
 fi
 
+current_pkgver=""
+if [[ -f "$PKGBUILD_PATH" ]]; then
+  current_pkgver="$(awk -F= '/^pkgver=/{print $2; exit}' "$PKGBUILD_PATH")"
+fi
+
 changed="false"
-if [[ "$asset_sha256" != "$previous_sha256" ]]; then
+if [[ "$asset_sha256" != "$previous_sha256" || "$pkgver_candidate" != "$current_pkgver" ]]; then
   changed="true"
 fi
 
@@ -77,6 +98,7 @@ printf 'asset_name=%s\n' "$asset_name"
 printf 'asset_url=%s\n' "$asset_url"
 printf 'asset_sha256=%s\n' "$asset_sha256"
 printf 'state_file=%s\n' "$STATE_FILE"
+printf 'current_pkgver=%s\n' "$current_pkgver"
 
 if [[ -n "$out_file" ]]; then
   {
@@ -88,5 +110,6 @@ if [[ -n "$out_file" ]]; then
     printf 'asset_url=%s\n' "$asset_url"
     printf 'asset_sha256=%s\n' "$asset_sha256"
     printf 'state_file=%s\n' "$STATE_FILE"
+    printf 'current_pkgver=%s\n' "$current_pkgver"
   } >> "$out_file"
 fi

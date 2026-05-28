@@ -1,16 +1,16 @@
 name: Publish rune-notes-bin to AUR
 
 on:
-  push:
-    branches:
-      - main
-  schedule:
-    - cron: "0 */6 * * *"
   repository_dispatch:
     types:
       - rune-release-published
   workflow_dispatch:
     inputs:
+      upstream_tag:
+        description: "Release tag to publish, for example v0.1.4"
+        required: false
+        default: ""
+        type: string
       force_publish:
         description: "Build and publish even when the upstream hash is unchanged"
         required: false
@@ -22,6 +22,7 @@ permissions:
 
 env:
   UPSTREAM_REPO: ${{ vars.UPSTREAM_REPO || 'eggfriedrice24/rune' }}
+  UPSTREAM_TAG: ${{ github.event.client_payload.tag_name || github.event.inputs.upstream_tag || '' }}
   AUR_COMMIT_NAME: ${{ vars.AUR_COMMIT_NAME || 'rune-notes-ci' }}
   AUR_COMMIT_EMAIL: ${{ vars.AUR_COMMIT_EMAIL || 'rune-notes-ci@users.noreply.github.com' }}
 
@@ -36,13 +37,13 @@ jobs:
         shell: bash
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
       - name: Install tooling
         run: |
           set -euo pipefail
           pacman -Sy --noconfirm --needed git openssh rsync curl github-cli jq
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
       - name: Validate repository layout
         run: |
@@ -59,6 +60,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           STATE_FILE: upstream.sha256
+          PKGBUILD_PATH: PKGBUILD
         run: |
           set -euo pipefail
           bash scripts/check_upstream.sh
@@ -67,12 +69,11 @@ jobs:
         id: decide
         env:
           CHANGED: ${{ steps.check.outputs.changed }}
-          EVENT_NAME: ${{ github.event_name }}
-          FORCE_PUBLISH: ${{ github.event.inputs.force_publish }}
+          FORCE_PUBLISH: ${{ github.event.inputs.force_publish || 'false' }}
         run: |
           set -euo pipefail
           should_publish=false
-          if [[ "$CHANGED" == "true" || "$EVENT_NAME" == "push" || "$FORCE_PUBLISH" == "true" ]]; then
+          if [[ "$CHANGED" == "true" || "$FORCE_PUBLISH" == "true" ]]; then
             should_publish=true
           fi
           echo "should_publish=$should_publish" >> "$GITHUB_OUTPUT"
@@ -115,7 +116,7 @@ jobs:
 
       - name: Upload build artifact
         if: steps.decide.outputs.should_publish == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: rune-notes-bin-package
           if-no-files-found: error

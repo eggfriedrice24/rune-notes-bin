@@ -21,7 +21,7 @@ yay -S rune-notes-bin
 - `PKGBUILD`, `.SRCINFO`: AUR package metadata.
 - `upstream.sha256`: last published upstream `.deb` checksum.
 - `scripts/`: release check, metadata update, and AUR publish helpers.
-- `.github/workflows/publish-aur.yml`: scheduled and manual AUR publishing workflow.
+- `.github/workflows/publish-aur.yml`: release-dispatched and manual AUR publishing workflow.
 
 ## Manual Update
 
@@ -47,3 +47,4 @@ Optional variables:
 - `AUR_COMMIT_EMAIL`: defaults to `rune-notes-ci@users.noreply.github.com`.
 
 The workflow can be run manually with `force_publish=true` to rebuild and push the current metadata even when the upstream checksum has not changed.
+Normal publishing is dispatched from `eggfriedrice24/rune` when a non-prerelease `v*` GitHub release is published.
